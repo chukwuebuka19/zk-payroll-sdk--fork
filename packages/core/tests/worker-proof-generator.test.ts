@@ -16,16 +16,30 @@ class FakeWorker implements WorkerLike {
     this.sent.push(message);
   }
 
-  addEventListener(type: string, listener: (e: never) => void): void {
-    if (type === "message") this.msgListeners.push(listener as never);
-    if (type === "error") this.errListeners.push(listener as never);
+  addEventListener(type: "message", listener: (e: { data: WorkerResponse }) => void): void;
+  addEventListener(type: "error", listener: (e: { message: string }) => void): void;
+  addEventListener(
+    type: "message" | "error",
+    listener: ((e: { data: WorkerResponse }) => void) | ((e: { message: string }) => void)
+  ): void {
+    if (type === "message") {
+      this.msgListeners.push(listener as (e: { data: WorkerResponse }) => void);
+    } else {
+      this.errListeners.push(listener as (e: { message: string }) => void);
+    }
   }
 
-  removeEventListener(type: string, listener: (e: never) => void): void {
-    if (type === "message")
+  removeEventListener(type: "message", listener: (e: { data: WorkerResponse }) => void): void;
+  removeEventListener(type: "error", listener: (e: { message: string }) => void): void;
+  removeEventListener(
+    type: "message" | "error",
+    listener: ((e: { data: WorkerResponse }) => void) | ((e: { message: string }) => void)
+  ): void {
+    if (type === "message") {
       this.msgListeners = this.msgListeners.filter((l) => l !== listener);
-    if (type === "error")
+    } else {
       this.errListeners = this.errListeners.filter((l) => l !== listener);
+    }
   }
 
   terminate(): void {

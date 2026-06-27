@@ -11,6 +11,10 @@ jobs:
     name: Lint, Typecheck & Test
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: packages/core
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,6 +25,7 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
+        working-directory: .
         run: npm install
 
       - name: Lint

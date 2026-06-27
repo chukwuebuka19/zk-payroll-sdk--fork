@@ -147,7 +147,7 @@ scope.addEventListener("message", (event: { data: WorkerRequest }) => {
     }
   };
 
-  run().catch((err: unknown) => {
+  void run().catch((err: unknown) => {
     emit({
       type: "PROOF_ERROR",
       id: req.id,
