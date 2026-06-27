@@ -12,7 +12,8 @@
     "lint:fix": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "typecheck": "tsc --noEmit",
-    "docs:build": "typedoc"
+    "docs:build": "typedoc",
+    "bundle:measure": "node scripts/measure-bundle.js"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^14.5.0",

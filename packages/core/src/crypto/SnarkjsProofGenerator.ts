@@ -2,56 +2,64 @@ import { groth16 } from "snarkjs";
 import axios from "axios";
 import { CacheProvider } from "../cache/CacheProvider";
 import { PayrollError } from "../errors";
-import { IProofGenerator, ProofPayload, ProofGeneratorConfig } from "./IProofGenerator";
+import {
+  IPreloadableProofGenerator,
+  ProofPayload,
+  ProofGeneratorConfig,
+  PreloadStatus,
+} from "./IProofGenerator";
+import { SdkLogger } from "../logging/SdkLogger";
 
 /**
- * Snarkjs-based implementation of IProofGenerator.
+ * Snarkjs-based implementation of IPreloadableProofGenerator.
  * Handles downloading circuit artifacts (.wasm, .zkey) and generating Groth16 proofs.
+ *
+ * Pass an SdkLogger to observe proof generation and artifact lifecycle events.
+ * Sensitive data (witness fields, amounts, recipients) is never logged.
  */
-export class SnarkjsProofGenerator implements IProofGenerator {
+export class SnarkjsProofGenerator implements IPreloadableProofGenerator {
   private wasmCache?: ArrayBuffer;
   private zkeyCache?: Uint8Array;
+  private preloadStatus: PreloadStatus = { wasmLoaded: false, zkeyLoaded: false };
 
   constructor(
     private config: ProofGeneratorConfig,
-    private cache?: CacheProvider<string>
+    private cache?: CacheProvider<string>,
+    private logger?: SdkLogger
   ) {}
 
-  /**
-   * Generates a Groth16 zero-knowledge proof using snarkjs.
-   *
-   * @param witness - Circuit inputs (must match circuit's input signal names)
-   * @returns ProofPayload formatted for smart contract verification
-   */
   async generateProof(witness: Record<string, unknown>): Promise<ProofPayload> {
+    this.logger?.info("proof_generation_start", { wasmUrl: this.config.wasmUrl });
+
     try {
-      // Check cache for existing proof
       if (this.cache) {
         const cacheKey = this.witnessKey(witness);
         const cached = await this.cache.get(cacheKey);
         if (cached !== null) {
+          this.logger?.info("proof_cache_hit");
           return JSON.parse(cached);
         }
+        this.logger?.info("proof_cache_miss");
       }
 
-      // Fetch circuit artifacts
       const [wasm, zkey] = await Promise.all([this.fetchWasm(), this.fetchZkey()]);
 
-      // Generate proof using snarkjs
       const { proof, publicSignals } = await groth16.fullProve(witness, wasm, zkey);
 
-      // Format proof for contract verification
       const payload = this.formatProofPayload(proof, publicSignals);
 
-      // Cache the result
       if (this.cache) {
         const cacheKey = this.witnessKey(witness);
         const ttl = this.config.artifactCacheTTL;
         await this.cache.set(cacheKey, JSON.stringify(payload), ttl);
       }
 
+      this.logger?.info("proof_generation_complete");
       return payload;
     } catch (error) {
+      this.logger?.error("proof_generation_failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw new PayrollError(
         `Proof generation failed: ${error instanceof Error ? error.message : String(error)}`,
         500
@@ -60,12 +68,40 @@ export class SnarkjsProofGenerator implements IProofGenerator {
   }
 
   /**
-   * Fetches the circuit .wasm file with caching.
+   * Preloads the .wasm and .zkey circuit artifacts into memory so that
+   * the first generateProof() call incurs no download latency.
+   *
+   * Reuses artifacts already cached from a previous preload or generateProof() call.
    */
+  async preload(): Promise<PreloadStatus> {
+    this.logger?.info("artifact_preload_start", {
+      wasmUrl: this.config.wasmUrl,
+      zkeyUrl: this.config.zkeyUrl,
+    });
+
+    await Promise.all([this.fetchWasm(), this.fetchZkey()]);
+
+    this.preloadStatus = {
+      wasmLoaded: true,
+      zkeyLoaded: true,
+      completedAt: new Date().toISOString(),
+    };
+
+    this.logger?.info("artifact_preload_complete");
+    return this.preloadStatus;
+  }
+
+  /** Returns the current preload status without triggering any downloads. */
+  getPreloadStatus(): PreloadStatus {
+    return { ...this.preloadStatus };
+  }
+
   private async fetchWasm(): Promise<ArrayBuffer> {
     if (this.wasmCache) {
       return this.wasmCache;
     }
+
+    this.logger?.info("artifact_fetch_start", { type: "wasm", url: this.config.wasmUrl });
 
     try {
       const response = await axios.get<ArrayBuffer>(this.config.wasmUrl, {
@@ -74,42 +110,46 @@ export class SnarkjsProofGenerator implements IProofGenerator {
       });
 
       this.wasmCache = response.data;
+      this.preloadStatus = { ...this.preloadStatus, wasmLoaded: true };
+      this.logger?.info("artifact_fetch_complete", { type: "wasm" });
       return this.wasmCache;
     } catch (error) {
       throw new PayrollError(
-        `Failed to fetch .wasm file from ${this.config.wasmUrl}: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to fetch .wasm file from ${this.config.wasmUrl}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         500
       );
     }
   }
 
-  /**
-   * Fetches the proving key .zkey file with caching.
-   */
   private async fetchZkey(): Promise<Uint8Array> {
     if (this.zkeyCache) {
       return this.zkeyCache;
     }
 
+    this.logger?.info("artifact_fetch_start", { type: "zkey", url: this.config.zkeyUrl });
+
     try {
       const response = await axios.get<ArrayBuffer>(this.config.zkeyUrl, {
         responseType: "arraybuffer",
-        timeout: 60000, // .zkey files can be large
+        timeout: 60000,
       });
 
       this.zkeyCache = new Uint8Array(response.data);
+      this.preloadStatus = { ...this.preloadStatus, zkeyLoaded: true };
+      this.logger?.info("artifact_fetch_complete", { type: "zkey" });
       return this.zkeyCache;
     } catch (error) {
       throw new PayrollError(
-        `Failed to fetch .zkey file from ${this.config.zkeyUrl}: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to fetch .zkey file from ${this.config.zkeyUrl}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         500
       );
     }
   }
 
-  /**
-   * Formats snarkjs proof output into contract-compatible structure.
-   */
   private formatProofPayload(
     proof: {
       pi_a: string[];
@@ -135,20 +175,15 @@ export class SnarkjsProofGenerator implements IProofGenerator {
     };
   }
 
-  /**
-   * Generates a stable cache key from witness data.
-   */
   private witnessKey(witness: Record<string, unknown>): string {
     return `proof:${JSON.stringify(witness, (_, value) =>
       typeof value === "bigint" ? value.toString() : value
     )}`;
   }
 
-  /**
-   * Clears cached artifacts to force re-download.
-   */
   clearArtifactCache(): void {
     this.wasmCache = undefined;
     this.zkeyCache = undefined;
+    this.preloadStatus = { wasmLoaded: false, zkeyLoaded: false };
   }
 }

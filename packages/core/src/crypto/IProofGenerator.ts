@@ -1,23 +1,37 @@
-/**
- * Interface for zero-knowledge proof generation.
- * Implementations should handle circuit-specific witness preparation
- * and proof generation using the appropriate proving system.
- */
 export interface IProofGenerator {
-  /**
-   * Generates a zero-knowledge proof for the given witness data.
-   *
-   * @param witness - Circuit-specific input data (e.g., recipient, amount, nullifier)
-   * @returns Promise resolving to the proof payload ready for contract verification
-   */
   generateProof(witness: Record<string, unknown>): Promise<ProofPayload>;
 }
 
+/** Status returned by preload() and getPreloadStatus(). */
+export interface PreloadStatus {
+  /** Whether the .wasm circuit file has been loaded into memory. */
+  wasmLoaded: boolean;
+  /** Whether the .zkey proving-key file has been loaded into memory. */
+  zkeyLoaded: boolean;
+  /** ISO timestamp of when preloading completed, if it has. */
+  completedAt?: string;
+}
+
 /**
- * Structured proof payload compatible with Solidity/Soroban verifiers.
+ * Extended interface for proof generators that support artifact preloading.
+ * Preloading downloads and caches circuit artifacts before proof generation
+ * is needed, eliminating first-run latency.
  */
+export interface IPreloadableProofGenerator extends IProofGenerator {
+  /**
+   * Preloads circuit artifacts (.wasm and .zkey) into memory.
+   * Subsequent calls to generateProof() reuse the cached artifacts.
+   *
+   * @returns Status indicating which artifacts were loaded.
+   */
+  preload(): Promise<PreloadStatus>;
+
+  /** Returns the current preload status without triggering a download. */
+  getPreloadStatus(): PreloadStatus;
+}
+
+/** Structured proof payload compatible with Solidity/Soroban verifiers. */
 export interface ProofPayload {
-  /** Proof components (pi_a, pi_b, pi_c for Groth16) */
   proof: {
     pi_a: [string, string];
     pi_b: [[string, string], [string, string]];
@@ -25,13 +39,10 @@ export interface ProofPayload {
     protocol: string;
     curve: string;
   };
-  /** Public signals/inputs to the circuit */
   publicSignals: string[];
 }
 
-/**
- * Configuration for proof generation artifacts.
- */
+/** Configuration for proof generation artifacts. */
 export interface ProofGeneratorConfig {
   /** URL or path to the circuit .wasm file */
   wasmUrl: string;
