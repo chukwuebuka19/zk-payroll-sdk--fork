@@ -25,7 +25,7 @@ await service.processPayment(
 
 ## Features
 
-- **Contract Wrappers**: Typed interfaces for Soroban contracts.
+- **Typed Contract Clients**: Fully typed client wrappers for PayrollRegistry, SalaryCommitment, ProofVerifier, and PaymentExecutor contracts.
 - **ZK Proof Generation**: Client-side proof generation using snarkjs for privacy.
 - **Caching**: Built-in caching for proofs and circuit artifacts.
 - **Error Handling**: Robust error typing and management.
@@ -77,6 +77,117 @@ const txHash = await mockContract.deposit(1000n);
 ```
 
 See the [Testing Guide](docs/TESTING.md) for complete documentation.
+
+## Typed Contract Clients
+
+The SDK provides typed client wrappers for the core ZK Payroll contracts. Each client exposes typed methods that encode arguments and decode responses automatically.
+
+### PayrollRegistryClient
+
+```typescript
+import { PayrollRegistryClient, rpc } from "@zk-payroll/sdk";
+
+const server = new rpc.Server("https://soroban-testnet.stellar.org");
+const client = new PayrollRegistryClient(server, "CCONTRACT_ID...");
+
+// Register a payroll relationship
+await client.register(
+  { employer: "G...", employee: "G...", salary: 1000n, token: "C...", metadata: "engineering" },
+  signer
+);
+
+// Query a registry entry
+const entry = await client.getRegistry("G...", "G...", signer);
+console.log(entry.salary, entry.active);
+
+// List employees
+const employees = await client.getEmployees("G...", 0, 10, signer);
+
+// Check if a registry exists
+const exists = await client.registryExists("G...", "G...", signer);
+```
+
+### SalaryCommitmentClient
+
+```typescript
+import { SalaryCommitmentClient } from "@zk-payroll/sdk";
+
+const client = new SalaryCommitmentClient(server, "CCONTRACT_ID...");
+
+// Commit to a salary amount (hidden via hash)
+await client.commit(
+  { employer: "G...", employee: "G...", commitmentHash: "abcd...", cycleId: 1n },
+  signer
+);
+
+// Retrieve a commitment
+const commitment = await client.getCommitment("G...", "G...", 1n, signer);
+
+// Batch commit multiple salaries
+await client.batchCommit("G...", [
+  { employee: "G...1", commitmentHash: "abcd", cycleId: 1n },
+  { employee: "G...2", commitmentHash: "ef01", cycleId: 1n },
+], signer);
+
+// Verify a commitment against a ZK proof
+const isValid = await client.verifyCommitment("G...", "G...", 1n, proof, signer);
+
+// Reveal the actual salary
+await client.revealSalary("G...", "G...", 1n, 1000n, signer);
+```
+
+### ProofVerifierClient
+
+```typescript
+import { ProofVerifierClient } from "@zk-payroll/sdk";
+
+const client = new ProofVerifierClient(server, "CCONTRACT_ID...");
+
+// Verify a ZK proof on-chain
+const valid = await client.verify(
+  { pi_a: ["1","2"], pi_b: [["3","4"],["5","6"]], pi_c: ["7","8"], publicSignals: ["sig1"] },
+  ["input1"],
+  1, // verification key ID
+  signer
+);
+
+// Add a new verification key
+const vkId = await client.addVerificationKey("aabbcc...", "groth16 key", signer);
+
+// Get active verification key
+const activeId = await client.getActiveVerificationKeyId(signer);
+
+// Get verification key info
+const info = await client.getVerificationKeyInfo(1, signer);
+```
+
+### PaymentExecutorClient
+
+```typescript
+import { PaymentExecutorClient } from "@zk-payroll/sdk";
+
+const client = new PaymentExecutorClient(server, "CCONTRACT_ID...");
+
+// Execute an immediate payment
+const result = await client.execute(
+  { recipient: "G...", amount: 1000n, asset: "C...", memo: "salary" },
+  signer
+);
+console.log("Transaction:", result.txHash);
+
+// Schedule a future payment
+const scheduled = await client.schedule(
+  { recipient: "G...", amount: 500n, asset: "C...", executeAt: 1700000000, memo: "bonus" },
+  signer
+);
+console.log("Payment ID:", scheduled.paymentId);
+
+// Cancel a scheduled payment
+await client.cancel(scheduled.paymentId, signer);
+
+// Get pending payments
+const payments = await client.getPendingPayments("G...", 0n, 20, signer);
+```
 
 ## Documentation
 

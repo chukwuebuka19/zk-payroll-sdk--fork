@@ -39,3 +39,6 @@ export * from "./adapters";
 export * from "./testing";
 export { TransactionWatcher } from "./events";
 export type { ConfirmationOptions, ConfirmationResult } from "./events";
+
+// ── Typed Contract Clients ───────────────────────────────────────────────────
+export * from "./clients";
