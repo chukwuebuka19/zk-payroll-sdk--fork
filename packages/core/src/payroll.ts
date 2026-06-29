@@ -98,20 +98,17 @@ export class PayrollService {
   }
 
   private validatePaymentParams(params: PaymentParams): void {
-    if (!params.recipient || params.recipient.trim() === "") {
-      throw new PayrollError(
-        "Recipient address is required",
-        PayrollServiceErrorCode.INVALID_RECIPIENT
-      );
-    }
-    if (params.amount <= 0n) {
-      throw new PayrollError(
-        "Amount must be a positive value",
-        PayrollServiceErrorCode.INVALID_AMOUNT
-      );
-    }
-    if (!params.asset || params.asset.trim() === "") {
-      throw new PayrollError("Asset identifier is required", PayrollServiceErrorCode.INVALID_ASSET);
+    const { PayrollValidation } = require("./core/validation");
+    const result = PayrollValidation.validatePaymentParams(params);
+    if (!result.isValid) {
+      // Map to backward-compatible PayrollError
+      const firstError = result.errors[0];
+      let code = 0;
+      if (firstError.field === "recipient") code = PayrollServiceErrorCode.INVALID_RECIPIENT;
+      else if (firstError.field === "amount") code = PayrollServiceErrorCode.INVALID_AMOUNT;
+      else if (firstError.field === "asset") code = PayrollServiceErrorCode.INVALID_ASSET;
+      
+      throw new PayrollError(firstError.message, code);
     }
   }
 }
