@@ -1,5 +1,3 @@
-import { xdr } from "@stellar/stellar-sdk";
-
 /**
  * Stellar network type
  */

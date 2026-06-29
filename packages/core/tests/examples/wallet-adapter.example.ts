@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * Wallet Adapter Usage Examples
  *

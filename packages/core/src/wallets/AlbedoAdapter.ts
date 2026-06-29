@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   IWalletAdapter,
   WalletNetwork,
@@ -43,11 +44,7 @@ export class AlbedoAdapter implements IWalletAdapter {
 
   async connect(network?: WalletNetwork): Promise<string> {
     if (!this.isAvailable()) {
-      throw new WalletError(
-        "Albedo is not available",
-        WalletErrorCode.NOT_INSTALLED,
-        this.id
-      );
+      throw new WalletError("Albedo is not available", WalletErrorCode.NOT_INSTALLED, this.id);
     }
 
     try {
@@ -108,11 +105,7 @@ export class AlbedoAdapter implements IWalletAdapter {
 
   async signTransaction(xdr: string): Promise<SignedTransaction> {
     if (!this._isConnected || !this._publicKey) {
-      throw new WalletError(
-        "Albedo is not connected",
-        WalletErrorCode.NOT_CONNECTED,
-        this.id
-      );
+      throw new WalletError("Albedo is not connected", WalletErrorCode.NOT_CONNECTED, this.id);
     }
 
     try {
@@ -122,11 +115,7 @@ export class AlbedoAdapter implements IWalletAdapter {
       });
 
       if (!response || !response.signed_xdr) {
-        throw new WalletError(
-          "User rejected signing",
-          WalletErrorCode.SIGNING_REJECTED,
-          this.id
-        );
+        throw new WalletError("User rejected signing", WalletErrorCode.SIGNING_REJECTED, this.id);
       }
 
       return {
@@ -140,11 +129,7 @@ export class AlbedoAdapter implements IWalletAdapter {
 
       // Check if user rejected
       if (error instanceof Error && error.message.includes("User rejected")) {
-        throw new WalletError(
-          "User rejected signing",
-          WalletErrorCode.SIGNING_REJECTED,
-          this.id
-        );
+        throw new WalletError("User rejected signing", WalletErrorCode.SIGNING_REJECTED, this.id);
       }
 
       throw new WalletError(
@@ -157,11 +142,7 @@ export class AlbedoAdapter implements IWalletAdapter {
 
   async signAndSubmitTransaction(xdr: string): Promise<string> {
     if (!this._isConnected || !this._publicKey) {
-      throw new WalletError(
-        "Albedo is not connected",
-        WalletErrorCode.NOT_CONNECTED,
-        this.id
-      );
+      throw new WalletError("Albedo is not connected", WalletErrorCode.NOT_CONNECTED, this.id);
     }
 
     try {
@@ -188,11 +169,7 @@ export class AlbedoAdapter implements IWalletAdapter {
 
       // Check if user rejected
       if (error instanceof Error && error.message.includes("User rejected")) {
-        throw new WalletError(
-          "User rejected signing",
-          WalletErrorCode.SIGNING_REJECTED,
-          this.id
-        );
+        throw new WalletError("User rejected signing", WalletErrorCode.SIGNING_REJECTED, this.id);
       }
 
       throw new WalletError(
@@ -230,17 +207,13 @@ export class AlbedoAdapter implements IWalletAdapter {
 
   private getAlbedoApi(): any {
     if (!this.isAvailable()) {
-      throw new WalletError(
-        "Albedo is not available",
-        WalletErrorCode.NOT_INSTALLED,
-        this.id
-      );
+      throw new WalletError("Albedo is not available", WalletErrorCode.NOT_INSTALLED, this.id);
     }
     return (window as any).Albedo;
   }
 
   private setupEventListeners(): void {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || typeof window.addEventListener !== "function") {
       return;
     }
 
@@ -248,7 +221,7 @@ export class AlbedoAdapter implements IWalletAdapter {
     // We'll listen for storage events as a fallback for cross-tab communication
     window.addEventListener("storage", (event) => {
       if (event.key === "albedo_account_change") {
-        this.handleAccountChange();
+        void this.handleAccountChange();
       }
       if (event.key === "albedo_network_change") {
         this.handleNetworkChange();
@@ -260,7 +233,7 @@ export class AlbedoAdapter implements IWalletAdapter {
     try {
       // Try to get the current public key
       const response = await this.getAlbedoApi().pubKey();
-      
+
       if (response && response.pubKey && response.pubKey !== this._publicKey) {
         this._publicKey = response.pubKey;
         this._isConnected = true;

@@ -20,7 +20,7 @@ export class PayrollValidation {
     if (!params.recipient || params.recipient.trim() === "") {
       errors.push({ field: "recipient", message: "Recipient address is required" });
     }
-    
+
     if (params.amount === undefined || params.amount === null || params.amount <= 0n) {
       errors.push({ field: "amount", message: "Amount must be a positive value" });
     }
@@ -34,7 +34,7 @@ export class PayrollValidation {
       errors,
     };
   }
-  
+
   /**
    * Throws a ValidationError for the first invalid field in the payment parameters.
    *

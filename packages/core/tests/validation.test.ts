@@ -13,7 +13,7 @@ describe("PayrollValidation", () => {
     const result = PayrollValidation.validatePaymentParams(validParams);
     expect(result.isValid).toBe(true);
     expect(result.errors).toHaveLength(0);
-    
+
     expect(() => PayrollValidation.assertValidPaymentParams(validParams)).not.toThrow();
   });
 
@@ -22,7 +22,7 @@ describe("PayrollValidation", () => {
     const result = PayrollValidation.validatePaymentParams(params);
     expect(result.isValid).toBe(false);
     expect(result.errors).toContainEqual(expect.objectContaining({ field: "recipient" }));
-    
+
     expect(() => PayrollValidation.assertValidPaymentParams(params)).toThrow(ValidationError);
   });
 

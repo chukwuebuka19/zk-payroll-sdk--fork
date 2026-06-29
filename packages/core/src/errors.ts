@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Core base error class matching legacy naming context under inheritance checks.
  */

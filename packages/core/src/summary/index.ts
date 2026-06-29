@@ -1,8 +1,4 @@
-export type {
-  ExecutionStatus,
-  PaymentExecutionOutcome,
-  PayrollExecutionSummary,
-} from "./types";
+export type { ExecutionStatus, PaymentExecutionOutcome, PayrollExecutionSummary } from "./types";
 
 export {
   createExecutionSummary,

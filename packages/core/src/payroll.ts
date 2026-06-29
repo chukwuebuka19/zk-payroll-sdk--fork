@@ -98,6 +98,7 @@ export class PayrollService {
   }
 
   private validatePaymentParams(params: PaymentParams): void {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { PayrollValidation } = require("./core/validation");
     const result = PayrollValidation.validatePaymentParams(params);
     if (!result.isValid) {
@@ -107,7 +108,7 @@ export class PayrollService {
       if (firstError.field === "recipient") code = PayrollServiceErrorCode.INVALID_RECIPIENT;
       else if (firstError.field === "amount") code = PayrollServiceErrorCode.INVALID_AMOUNT;
       else if (firstError.field === "asset") code = PayrollServiceErrorCode.INVALID_ASSET;
-      
+
       throw new PayrollError(firstError.message, code);
     }
   }

@@ -1,16 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Unit tests for wallet adapters
  */
 
-import {
-  FreighterAdapter,
-  AlbedoAdapter,
-  IWalletAdapter,
-  WalletError,
-  WalletErrorCode,
-  WalletNetwork,
-  WalletConnectionStatus,
-} from "../src/wallets";
+import { FreighterAdapter, AlbedoAdapter, WalletError, WalletErrorCode } from "../src/wallets";
 
 // Mock window object for testing
 const mockWindow = {
@@ -30,12 +23,25 @@ const mockWindow = {
 };
 
 // Setup global window
-(global as any).window = mockWindow;
+if (typeof (global as any).window === "undefined") {
+  (global as any).window = {} as any;
+}
+(global as any).window.freighter = mockWindow.freighter;
+(global as any).window.Albedo = mockWindow.Albedo;
+(global as any).window.addEventListener = mockWindow.addEventListener;
+(global as any).window.removeEventListener = mockWindow.removeEventListener;
+
+beforeEach(() => {
+  (global as any).window.freighter = mockWindow.freighter;
+  (global as any).window.Albedo = mockWindow.Albedo;
+  (global as any).window.addEventListener = mockWindow.addEventListener;
+  (global as any).window.removeEventListener = mockWindow.removeEventListener;
+});
 
 describe("IWalletAdapter Interface", () => {
   it("should have required interface methods", () => {
     const freighter = new FreighterAdapter();
-    
+
     expect(typeof freighter.connect).toBe("function");
     expect(typeof freighter.disconnect).toBe("function");
     expect(typeof freighter.signTransaction).toBe("function");
@@ -49,7 +55,7 @@ describe("IWalletAdapter Interface", () => {
 
   it("should have required properties", () => {
     const freighter = new FreighterAdapter();
-    
+
     expect(typeof freighter.id).toBe("string");
     expect(typeof freighter.name).toBe("string");
     expect(typeof freighter.isConnected).toBe("boolean");
@@ -72,7 +78,7 @@ describe("FreighterAdapter", () => {
     });
 
     it("should return false when freighter is not available", () => {
-      (global as any).window = {};
+      (global as any).window.freighter = undefined;
       const adapter2 = new FreighterAdapter();
       expect(adapter2.isAvailable()).toBe(false);
     });
@@ -92,7 +98,7 @@ describe("FreighterAdapter", () => {
     });
 
     it("should throw error when freighter is not installed", async () => {
-      (global as any).window = {};
+      (global as any).window.freighter = undefined;
       const adapter2 = new FreighterAdapter();
 
       await expect(adapter2.connect("testnet")).rejects.toThrow(WalletError);
@@ -112,7 +118,9 @@ describe("FreighterAdapter", () => {
 
     it("should detect mainnet network", async () => {
       mockWindow.freighter.getAddress.mockResolvedValue("GABCD...");
-      mockWindow.freighter.getNetwork.mockResolvedValue("Public Global Stellar Network ; September 2015");
+      mockWindow.freighter.getNetwork.mockResolvedValue(
+        "Public Global Stellar Network ; September 2015"
+      );
 
       await adapter.connect("public");
 
@@ -191,7 +199,9 @@ describe("FreighterAdapter", () => {
     });
 
     it("should throw error when not connected", async () => {
-      await expect(adapter.signAndSubmitTransaction("UNSIGNED_XDR...")).rejects.toThrow(WalletError);
+      await expect(adapter.signAndSubmitTransaction("UNSIGNED_XDR...")).rejects.toThrow(
+        WalletError
+      );
       await expect(adapter.signAndSubmitTransaction("UNSIGNED_XDR...")).rejects.toMatchObject({
         code: WalletErrorCode.NOT_CONNECTED,
       });
@@ -255,7 +265,7 @@ describe("AlbedoAdapter", () => {
     });
 
     it("should return false when Albedo is not available", () => {
-      (global as any).window = {};
+      (global as any).window.Albedo = undefined;
       const adapter2 = new AlbedoAdapter();
       expect(adapter2.isAvailable()).toBe(false);
     });
@@ -274,7 +284,7 @@ describe("AlbedoAdapter", () => {
     });
 
     it("should throw error when Albedo is not available", async () => {
-      (global as any).window = {};
+      (global as any).window.Albedo = undefined;
       const adapter2 = new AlbedoAdapter();
 
       await expect(adapter2.connect("testnet")).rejects.toThrow(WalletError);
@@ -367,7 +377,9 @@ describe("AlbedoAdapter", () => {
     });
 
     it("should throw error when not connected", async () => {
-      await expect(adapter.signAndSubmitTransaction("UNSIGNED_XDR...")).rejects.toThrow(WalletError);
+      await expect(adapter.signAndSubmitTransaction("UNSIGNED_XDR...")).rejects.toThrow(
+        WalletError
+      );
       await expect(adapter.signAndSubmitTransaction("UNSIGNED_XDR...")).rejects.toMatchObject({
         code: WalletErrorCode.NOT_CONNECTED,
       });

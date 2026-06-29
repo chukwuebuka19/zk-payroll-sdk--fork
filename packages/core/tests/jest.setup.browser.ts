@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { TextEncoder, TextDecoder } from "util";
 
 global.TextEncoder = TextEncoder;

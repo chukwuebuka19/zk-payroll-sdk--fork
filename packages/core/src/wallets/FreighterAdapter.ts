@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   IWalletAdapter,
   WalletNetwork,
@@ -55,7 +56,7 @@ export class FreighterAdapter implements IWalletAdapter {
 
       // Get address from Freighter
       const address = await this.getFreighterApi().getAddress();
-      
+
       if (!address) {
         throw new WalletError(
           "Failed to get address from Freighter",
@@ -106,22 +107,14 @@ export class FreighterAdapter implements IWalletAdapter {
 
   async signTransaction(xdr: string): Promise<SignedTransaction> {
     if (!this._isConnected || !this._publicKey) {
-      throw new WalletError(
-        "Freighter is not connected",
-        WalletErrorCode.NOT_CONNECTED,
-        this.id
-      );
+      throw new WalletError("Freighter is not connected", WalletErrorCode.NOT_CONNECTED, this.id);
     }
 
     try {
       const signedXdr = await this.getFreighterApi().signXDR(xdr);
 
       if (!signedXdr) {
-        throw new WalletError(
-          "User rejected signing",
-          WalletErrorCode.SIGNING_REJECTED,
-          this.id
-        );
+        throw new WalletError("User rejected signing", WalletErrorCode.SIGNING_REJECTED, this.id);
       }
 
       return {
@@ -143,11 +136,7 @@ export class FreighterAdapter implements IWalletAdapter {
 
   async signAndSubmitTransaction(xdr: string): Promise<string> {
     if (!this._isConnected || !this._publicKey) {
-      throw new WalletError(
-        "Freighter is not connected",
-        WalletErrorCode.NOT_CONNECTED,
-        this.id
-      );
+      throw new WalletError("Freighter is not connected", WalletErrorCode.NOT_CONNECTED, this.id);
     }
 
     try {
@@ -203,11 +192,7 @@ export class FreighterAdapter implements IWalletAdapter {
 
   private getFreighterApi(): any {
     if (!this.isAvailable()) {
-      throw new WalletError(
-        "Freighter is not available",
-        WalletErrorCode.NOT_INSTALLED,
-        this.id
-      );
+      throw new WalletError("Freighter is not available", WalletErrorCode.NOT_INSTALLED, this.id);
     }
     return (window as any).freighter;
   }
@@ -227,28 +212,28 @@ export class FreighterAdapter implements IWalletAdapter {
   }
 
   private setupEventListeners(): void {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || typeof window.addEventListener !== "function") {
       return;
     }
 
     // Listen for Freighter's custom events
     window.addEventListener("freighter-connection", () => {
-      this.handleConnectionChange();
+      void this.handleConnectionChange();
     });
 
     window.addEventListener("freighter-network", () => {
-      this.handleNetworkChange();
+      void this.handleNetworkChange();
     });
 
     window.addEventListener("freighter-account", () => {
-      this.handleAccountChange();
+      void this.handleAccountChange();
     });
   }
 
   private async handleConnectionChange(): Promise<void> {
     try {
       const isConnected = await this.getFreighterApi().isConnected();
-      
+
       if (isConnected && !this._isConnected) {
         const address = await this.getFreighterApi().getAddress();
         if (address) {
@@ -271,7 +256,7 @@ export class FreighterAdapter implements IWalletAdapter {
     try {
       const networkDetails = await this.getFreighterApi().getNetwork();
       const newNetwork = this.mapFreighterNetwork(networkDetails);
-      
+
       if (newNetwork !== this._network) {
         this._network = newNetwork;
         this.notifyNetworkChange(newNetwork);
@@ -285,7 +270,7 @@ export class FreighterAdapter implements IWalletAdapter {
   private async handleAccountChange(): Promise<void> {
     try {
       const address = await this.getFreighterApi().getAddress();
-      
+
       if (address && address !== this._publicKey) {
         this._publicKey = address;
         this.notifyAccountChange(address);
