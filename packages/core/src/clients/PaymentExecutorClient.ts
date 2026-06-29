@@ -20,11 +20,7 @@ export interface SchedulePaymentResponse {
 export class PaymentExecutorClient extends BaseContractWrapper {
   private readonly networkPassphrase: string;
 
-  constructor(
-    server: rpc.Server,
-    contractId: string,
-    options?: ClientOptions
-  ) {
+  constructor(server: rpc.Server, contractId: string, options?: ClientOptions) {
     super(server, contractId);
     this.networkPassphrase = options?.networkPassphrase ?? Networks.TESTNET;
   }
@@ -62,11 +58,7 @@ export class PaymentExecutorClient extends BaseContractWrapper {
     return { paymentId: this.scValToBigInt(result) };
   }
 
-  async cancel(
-    paymentId: bigint,
-    signer: Keypair | ISigner,
-    network?: string
-  ): Promise<void> {
+  async cancel(paymentId: bigint, signer: Keypair, network?: string): Promise<void> {
     const args: xdr.ScVal[] = [nativeToScVal(paymentId, { type: "u64" })];
     await this.invoke("cancel", args, toISigner(signer), network ?? this.networkPassphrase);
   }
@@ -77,7 +69,12 @@ export class PaymentExecutorClient extends BaseContractWrapper {
     network?: string
   ): Promise<ScheduledPayment> {
     const args: xdr.ScVal[] = [nativeToScVal(paymentId, { type: "u64" })];
-    const result = await this.invoke("get_scheduled_payment", args, toISigner(signer), network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "get_scheduled_payment",
+      args,
+      signer,
+      network ?? this.networkPassphrase
+    );
     return this.decodeScheduledPayment(result);
   }
 
@@ -94,17 +91,23 @@ export class PaymentExecutorClient extends BaseContractWrapper {
       nativeToScVal(limit, { type: "u32" }),
     ];
 
-    const result = await this.invoke("get_pending_payments", args, toISigner(signer), network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "get_pending_payments",
+      args,
+      signer,
+      network ?? this.networkPassphrase
+    );
     return this.decodeScheduledPaymentVec(result);
   }
 
-  async getPaymentCount(
-    employer: string,
-    signer: Keypair | ISigner,
-    network?: string
-  ): Promise<number> {
+  async getPaymentCount(employer: string, signer: Keypair, network?: string): Promise<number> {
     const args: xdr.ScVal[] = [new Address(employer).toScVal()];
-    const result = await this.invoke("get_payment_count", args, toISigner(signer), network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "get_payment_count",
+      args,
+      signer,
+      network ?? this.networkPassphrase
+    );
     return Number(result.u32());
   }
 
@@ -149,14 +152,17 @@ export class PaymentExecutorClient extends BaseContractWrapper {
   }
 
   private scValToBigInt(scVal: xdr.ScVal): bigint {
-    const i128 = scVal.i128();
-    if (i128) {
-      const hi = BigInt(i128.hi());
-      const lo = BigInt(i128.lo());
+    const swName = scVal.switch().name;
+    if (swName === "scvI128") {
+      const i128 = scVal.i128();
+      const hi = BigInt(i128.hi().toString());
+      const lo = BigInt(i128.lo().toString());
       return (hi << 64n) | lo;
     }
-    const u64 = scVal.u64();
-    if (u64) return BigInt(u64);
+    if (swName === "scvU64") {
+      const u64 = scVal.u64();
+      return BigInt(u64.toString());
+    }
     return 0n;
   }
 }

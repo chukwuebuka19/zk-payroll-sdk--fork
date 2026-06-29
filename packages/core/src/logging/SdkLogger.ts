@@ -35,19 +35,12 @@ export function createHookLogger(hook: LoggerHook): SdkLogger {
 }
 
 /**
- * Fields that must never appear in log output.
- * The SDK redacts these from context objects automatically.
- */
-const SENSITIVE_FIELDS = new Set(["recipient", "amount", "witness", "privateKey", "adminKey"]);
-
-/**
  * Returns a shallow copy of `context` with sensitive field values replaced by `"[redacted]"`.
  * Safe to call on any context object before passing to a logger.
+ *
+ * Delegates to the redaction module so the sensitive-field list stays in one place.
  */
 export function redactSensitive(context: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(context)) {
-    result[key] = SENSITIVE_FIELDS.has(key) ? "[redacted]" : value;
-  }
-  return result;
+  const { redactObject } = require("../redaction/RedactionEngine");
+  return redactObject(context).redacted as Record<string, unknown>;
 }

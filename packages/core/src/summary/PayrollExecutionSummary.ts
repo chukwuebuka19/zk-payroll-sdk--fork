@@ -55,7 +55,7 @@ function countByStatus(outcomes: PaymentExecutionOutcome[]) {
 export function createExecutionSummary(
   outcomes: PaymentExecutionOutcome[],
   durationMs: number,
-  error?: string,
+  error?: string
 ): PayrollExecutionSummary {
   const { successCount, failureCount, pendingCount } = countByStatus(outcomes);
 
@@ -86,7 +86,7 @@ export function successOutcome(
   amount: bigint,
   asset: string,
   txHash?: string,
-  publicSignals?: string[],
+  publicSignals?: string[]
 ): PaymentExecutionOutcome {
   return { recipient, amount, asset, status: "success", txHash, publicSignals };
 }
@@ -103,7 +103,7 @@ export function failedOutcome(
   recipient: string,
   amount: bigint,
   asset: string,
-  error?: string,
+  error?: string
 ): PaymentExecutionOutcome {
   return { recipient, amount, asset, status: "failure", error };
 }
@@ -118,7 +118,7 @@ export function failedOutcome(
 export function pendingOutcome(
   recipient: string,
   amount: bigint,
-  asset: string,
+  asset: string
 ): PaymentExecutionOutcome {
   return { recipient, amount, asset, status: "pending" };
 }

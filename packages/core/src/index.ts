@@ -19,6 +19,8 @@ export { PayrollError, PayrollServiceErrorCode, handleApiError } from "./errors"
 // ── Adapters Layer ──────────────────────────────────────────────────────────
 export * from "./adapters";
 
+// ── Wallet Adapters ─────────────────────────────────────────────────────────
+export * from "./wallets";
 // ── Logging ─────────────────────────────────────────────────────────────────
 export * from "./logging";
 
@@ -35,8 +37,17 @@ export type { ConfirmationOptions, ConfirmationResult } from "./events";
 // ── Typed Contract Clients ───────────────────────────────────────────────────
 export * from "./clients";
 
-// ── Payroll Execution Summary ────────────────────────────────────────────────
-export * from "./summary";
+// ── Environment Sanity Checker ──────────────────────────────────────────────
+export * from "./sanity";
 
-// ── Signer Abstraction ───────────────────────────────────────────────────────
-export * from "./signer";
+// ── Transaction Simulation ──────────────────────────────────────────────────
+export * from "./simulation";
+
+// ── Draft Persistence ───────────────────────────────────────────────────────
+export * from "./draft";
+
+// ── History Filter Builders ─────────────────────────────────────────────────
+export * from "./filters";
+
+// ── Redaction Utilities ─────────────────────────────────────────────────────
+export * from "./redaction";

@@ -21,6 +21,8 @@ npm run typecheck    # Type check
 npm run format       # Format code
 ```
 
+> **Troubleshooting:** If you hit issues, check the [Troubleshooting Guide](./docs/TROUBLESHOOTING.md).
+
 ## Architecture
 
 The SDK follows a **layered architecture** to maintain clean separation of concerns:

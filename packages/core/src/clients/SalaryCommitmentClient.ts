@@ -13,24 +13,24 @@ import {
 export class SalaryCommitmentClient extends BaseContractWrapper {
   private readonly networkPassphrase: string;
 
-  constructor(
-    server: rpc.Server,
-    contractId: string,
-    options?: ClientOptions
-  ) {
+  constructor(server: rpc.Server, contractId: string, options?: ClientOptions) {
     super(server, contractId);
     this.networkPassphrase = options?.networkPassphrase ?? Networks.TESTNET;
   }
 
-  async commit(
-    request: CommitRequest,
-    signer: Keypair | ISigner,
-    network?: string
-  ): Promise<void> {
+  async commit(request: CommitRequest, signer: Keypair, network?: string): Promise<void> {
+    const hash = request.commitmentHash;
+    const isHex = typeof hash === "string" && /^[0-9a-fA-F]+$/.test(hash) && hash.length % 2 === 0;
+    const commitmentHashBuf = isHex
+      ? Buffer.from(hash as string, "hex")
+      : typeof hash === "string"
+        ? Buffer.from(hash, "utf-8")
+        : hash;
+
     const args: xdr.ScVal[] = [
       new Address(request.employer).toScVal(),
       new Address(request.employee).toScVal(),
-      nativeToScVal(request.commitmentHash, { type: "bytes" }),
+      nativeToScVal(new Uint8Array(commitmentHashBuf), { type: "bytes" }),
       nativeToScVal(request.cycleId, { type: "u64" }),
     ];
 
@@ -50,7 +50,12 @@ export class SalaryCommitmentClient extends BaseContractWrapper {
       nativeToScVal(cycleId, { type: "u64" }),
     ];
 
-    const result = await this.invoke("get_commitment", args, toISigner(signer), network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "get_commitment",
+      args,
+      signer,
+      network ?? this.networkPassphrase
+    );
     return this.decodeCommitmentEntry(result);
   }
 
@@ -61,28 +66,34 @@ export class SalaryCommitmentClient extends BaseContractWrapper {
     network?: string
   ): Promise<void> {
     const commitVec = xdr.ScVal.scvVec(
-      commitments.map((item) =>
-        xdr.ScVal.scvMap([
+      commitments.map((item) => {
+        const hash = item.commitmentHash;
+        const isHex =
+          typeof hash === "string" && /^[0-9a-fA-F]+$/.test(hash) && hash.length % 2 === 0;
+        const commitmentHashBuf = isHex
+          ? Buffer.from(hash as string, "hex")
+          : typeof hash === "string"
+            ? Buffer.from(hash, "utf-8")
+            : hash;
+
+        return xdr.ScVal.scvMap([
           new xdr.ScMapEntry({
             key: nativeToScVal("employee", { type: "symbol" }),
             val: new Address(item.employee).toScVal(),
           }),
           new xdr.ScMapEntry({
             key: nativeToScVal("commitment_hash", { type: "symbol" }),
-            val: nativeToScVal(item.commitmentHash, { type: "bytes" }),
+            val: nativeToScVal(new Uint8Array(commitmentHashBuf), { type: "bytes" }),
           }),
           new xdr.ScMapEntry({
             key: nativeToScVal("cycle_id", { type: "symbol" }),
             val: nativeToScVal(item.cycleId, { type: "u64" }),
           }),
-        ])
-      )
+        ]);
+      })
     );
 
-    const args: xdr.ScVal[] = [
-      new Address(employer).toScVal(),
-      commitVec,
-    ];
+    const args: xdr.ScVal[] = [new Address(employer).toScVal(), commitVec];
 
     await this.invoke("batch_commit", args, toISigner(signer), network ?? this.networkPassphrase);
   }
@@ -102,7 +113,12 @@ export class SalaryCommitmentClient extends BaseContractWrapper {
       this.encodeProofStruct(proof),
     ];
 
-    const result = await this.invoke("verify_commitment", args, toISigner(signer), network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "verify_commitment",
+      args,
+      signer,
+      network ?? this.networkPassphrase
+    );
     return result.b() === true;
   }
 
@@ -130,12 +146,14 @@ export class SalaryCommitmentClient extends BaseContractWrapper {
     signer: Keypair | ISigner,
     network?: string
   ): Promise<number> {
-    const args: xdr.ScVal[] = [
-      new Address(employer).toScVal(),
-      new Address(employee).toScVal(),
-    ];
+    const args: xdr.ScVal[] = [new Address(employer).toScVal(), new Address(employee).toScVal()];
 
-    const result = await this.invoke("get_commitment_count", args, toISigner(signer), network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "get_commitment_count",
+      args,
+      signer,
+      network ?? this.networkPassphrase
+    );
     return Number(result.u32());
   }
 
@@ -163,17 +181,13 @@ export class SalaryCommitmentClient extends BaseContractWrapper {
   }
 
   private encodeProofStruct(proof: ProofStruct): xdr.ScVal {
-    const piA = xdr.ScVal.scvVec(
-      proof.pi_a.map((s) => nativeToScVal(s, { type: "string" }))
-    );
+    const piA = xdr.ScVal.scvVec(proof.pi_a.map((s) => nativeToScVal(s, { type: "string" })));
     const piB = xdr.ScVal.scvVec(
       proof.pi_b.map((pair) =>
         xdr.ScVal.scvVec(pair.map((s) => nativeToScVal(s, { type: "string" })))
       )
     );
-    const piC = xdr.ScVal.scvVec(
-      proof.pi_c.map((s) => nativeToScVal(s, { type: "string" }))
-    );
+    const piC = xdr.ScVal.scvVec(proof.pi_c.map((s) => nativeToScVal(s, { type: "string" })));
     const publicSignals = xdr.ScVal.scvVec(
       proof.publicSignals.map((s) => nativeToScVal(s, { type: "string" }))
     );
@@ -205,14 +219,17 @@ export class SalaryCommitmentClient extends BaseContractWrapper {
   }
 
   private scValToBigInt(scVal: xdr.ScVal): bigint {
-    const i128 = scVal.i128();
-    if (i128) {
-      const hi = BigInt(i128.hi());
-      const lo = BigInt(i128.lo());
+    const swName = scVal.switch().name;
+    if (swName === "scvI128") {
+      const i128 = scVal.i128();
+      const hi = BigInt(i128.hi().toString());
+      const lo = BigInt(i128.lo().toString());
       return (hi << 64n) | lo;
     }
-    const u64 = scVal.u64();
-    if (u64) return BigInt(u64);
+    if (swName === "scvU64") {
+      const u64 = scVal.u64();
+      return BigInt(u64.toString());
+    }
     return 0n;
   }
 }
