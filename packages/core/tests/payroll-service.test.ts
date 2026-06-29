@@ -88,6 +88,48 @@ describe("PayrollService", () => {
       expect(result.publicSignals).toEqual(["123", "456"]);
     });
 
+    it("deduplicates duplicate retries when idempotencyKey matches", async () => {
+      const { mockWrapper, mockProofGen, signer } = createMocks();
+      const service = new PayrollService(mockWrapper, mockProofGen, signer);
+
+      const request = {
+        recipient: "GABC123",
+        amount: 100n,
+        asset: "native",
+        idempotencyKey: "retry-123",
+      };
+
+      const [first, second] = await Promise.all([
+        service.processPayment(request),
+        service.processPayment(request),
+      ]);
+
+      expect(first).toEqual(second);
+      expect(mockProofGen.generateProof).toHaveBeenCalledTimes(1);
+      expect((mockWrapper.privatePay as jest.Mock)).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not deduplicate when idempotencyKey is omitted", async () => {
+      const { mockWrapper, mockProofGen, signer } = createMocks();
+      const service = new PayrollService(mockWrapper, mockProofGen, signer);
+
+      await service.processPayment({ recipient: "GABC123", amount: 100n, asset: "native" });
+      await service.processPayment({ recipient: "GABC123", amount: 100n, asset: "native" });
+
+      expect(mockProofGen.generateProof).toHaveBeenCalledTimes(2);
+      expect((mockWrapper.privatePay as jest.Mock)).toHaveBeenCalledTimes(2);
+    });
+
+    it("builds deterministic idempotency keys for payment payloads", () => {
+      const key = PayrollService.createIdempotencyKey({
+        recipient: " GABC123 ",
+        amount: 100n,
+        asset: "NATIVE",
+      });
+
+      expect(key).toBe("pay:gabc123:100:native");
+    });
+
     it("passes custom network to contract wrapper", async () => {
       const { mockWrapper, mockProofGen, signer } = createMocks();
       const service = new PayrollService(mockWrapper, mockProofGen, signer, Networks.PUBLIC);

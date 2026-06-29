@@ -23,6 +23,27 @@ await service.processPayment(
 );
 ```
 
+## Idempotent retries
+
+For safe retries, pass an `idempotencyKey` when processing a payment.
+
+```typescript
+import { PayrollService, createPaymentIdempotencyKey } from "@zk-payroll/sdk";
+
+const idempotencyKey = createPaymentIdempotencyKey({
+  recipient: "G...",
+  amount: 1000n,
+  asset: "native",
+});
+
+await service.processPayment({
+  recipient: "G...",
+  amount: 1000n,
+  asset: "native",
+  idempotencyKey,
+});
+```
+
 ## Features
 
 - **Typed Contract Clients**: Fully typed client wrappers for PayrollRegistry, SalaryCommitment, ProofVerifier, and PaymentExecutor contracts.

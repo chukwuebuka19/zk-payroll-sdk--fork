@@ -2,6 +2,7 @@ import { rpc, Contract, TransactionBuilder, Networks, BASE_FEE, xdr } from "@ste
 import type { ISigner } from "../signer/types";
 import { ContractExecutionError, ContractErrorCode, mapRpcError } from "../errors";
 import { withRetry } from "../core";
+import { IdempotencyRegistry } from "../core/idempotency";
 
 /** How long (ms) to wait between transaction status polls */
 const POLL_INTERVAL_MS = 2_000;
@@ -21,8 +22,17 @@ const MAX_POLLS = 15;
  * Subclasses only need to call `this.invoke(method, args)` and handle
  * the typed return value — no RPC plumbing required.
  */
+export interface InvokeOptions {
+  /**
+   * Optional idempotency key for transaction submission.
+   * Duplicate keys replay the same in-flight/completed submission result.
+   */
+  idempotencyKey?: string;
+}
+
 export abstract class BaseContractWrapper {
   protected readonly contract: Contract;
+  private readonly submissionIdempotency = new IdempotencyRegistry<xdr.ScVal>();
 
   constructor(
     protected readonly server: rpc.Server,
@@ -45,9 +55,11 @@ export abstract class BaseContractWrapper {
     method: string,
     args: xdr.ScVal[],
     signer: ISigner,
-    network: string = Networks.TESTNET
+    network: string = Networks.TESTNET,
+    options?: InvokeOptions
   ): Promise<xdr.ScVal> {
-    try {
+    const runInvocation = async (): Promise<xdr.ScVal> => {
+      try {
       // ── 1. Load the source account ─────────────────────────────────────
       const pubKey = await signer.getPublicKey();
       const account = await withRetry(() => this.server.getAccount(pubKey), {
@@ -97,13 +109,25 @@ export abstract class BaseContractWrapper {
         );
       }
 
-      // ── 6. Poll for final status ───────────────────────────────────────
-      return await this.pollForResult(sendResult.hash, method);
-    } catch (err) {
-      // Re-throw already-typed errors, map everything else
-      if (err instanceof ContractExecutionError) throw err;
-      throw mapRpcError(err);
+        // ── 6. Poll for final status ───────────────────────────────────────
+        return await this.pollForResult(sendResult.hash, method);
+      } catch (err) {
+        // Re-throw already-typed errors, map everything else
+        if (err instanceof ContractExecutionError) throw err;
+        throw mapRpcError(err);
+      }
+    };
+
+    const idempotencyKey = options?.idempotencyKey?.trim();
+    if (!idempotencyKey) {
+      return runInvocation();
     }
+
+    return this.submissionIdempotency.execute(
+      `${this.contractId}:${method}:${idempotencyKey}`,
+      runInvocation,
+      { cacheErrors: false }
+    );
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────

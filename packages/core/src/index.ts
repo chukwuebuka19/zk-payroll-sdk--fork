@@ -34,6 +34,7 @@ export type { ErrorContext, ContractErrorCodeType } from "./errors";
 export { DEFAULT_CONFIG } from "./config";
 export * from "./cache";
 export * from "./types";
+export { IdempotencyRegistry, createPaymentIdempotencyKey } from "./core/idempotency";
 export * from "./crypto/IProofGenerator";
 export * from "./adapters";
 

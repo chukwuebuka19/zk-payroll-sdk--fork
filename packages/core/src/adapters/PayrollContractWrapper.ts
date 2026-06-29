@@ -1,7 +1,7 @@
 import { rpc, xdr, nativeToScVal, Address, Keypair, Networks } from "@stellar/stellar-sdk";
 import type { ISigner } from "../signer/types";
 import { toISigner } from "../signer/KeypairSigner";
-import { BaseContractWrapper } from "./BaseContractWrapper";
+import { BaseContractWrapper, InvokeOptions } from "./BaseContractWrapper";
 import { ProofPayload } from "../crypto/IProofGenerator";
 
 /**
@@ -32,7 +32,8 @@ export class PayrollContractWrapper extends BaseContractWrapper {
     asset: string,
     proof: ProofPayload,
     signer: Keypair | ISigner,
-    network: string = Networks.TESTNET
+    network: string = Networks.TESTNET,
+    options?: InvokeOptions
   ): Promise<xdr.ScVal> {
     const args: xdr.ScVal[] = [
       new Address(recipient).toScVal(),
@@ -41,7 +42,7 @@ export class PayrollContractWrapper extends BaseContractWrapper {
       this.encodeProof(proof),
     ];
 
-    return this.invoke("private_pay", args, toISigner(signer), network);
+    return this.invoke("private_pay", args, toISigner(signer), network, options);
   }
 
   /**
