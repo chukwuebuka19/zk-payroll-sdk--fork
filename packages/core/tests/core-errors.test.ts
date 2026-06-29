@@ -6,7 +6,7 @@ import {
   ValidationError,
   ContractErrorCode,
   mapRpcError,
-} from "../src/core/errors";
+} from "../src/errors";
 import { PayrollError } from "../src/errors";
 
 describe("Core Error Classes", () => {

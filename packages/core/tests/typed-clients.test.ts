@@ -3,7 +3,12 @@ import { PayrollRegistryClient } from "../src/clients/PayrollRegistryClient";
 import { SalaryCommitmentClient } from "../src/clients/SalaryCommitmentClient";
 import { ProofVerifierClient } from "../src/clients/ProofVerifierClient";
 import { PaymentExecutorClient } from "../src/clients/PaymentExecutorClient";
-import type { RegisterRequest, CommitRequest, BatchCommitItem, ProofStruct } from "../src/clients/types";
+import type {
+  RegisterRequest,
+  CommitRequest,
+  BatchCommitItem,
+  ProofStruct,
+} from "../src/clients/types";
 
 const TEST_CONTRACT_ID = StrKey.encodeContract(Buffer.alloc(32, 1));
 const TEST_EMPLOYER = Keypair.random().publicKey();
@@ -12,7 +17,10 @@ const TEST_TOKEN = StrKey.encodeContract(Buffer.alloc(32, 2));
 
 const MOCK_PROOF_STRUCT: ProofStruct = {
   pi_a: ["1", "2"],
-  pi_b: [["3", "4"], ["5", "6"]],
+  pi_b: [
+    ["3", "4"],
+    ["5", "6"],
+  ],
   pi_c: ["7", "8"],
   publicSignals: ["abc", "def"],
 };
@@ -34,12 +42,15 @@ function makeRegistryEntryScVal(overrides?: Partial<Record<string, xdr.ScVal>>):
   };
   const merged = { ...defaults, ...overrides };
   return xdr.ScVal.scvMap(
-    Object.entries(merged).map(([key, val]) =>
-      new xdr.ScMapEntry({
+    Object.entries(merged).map(([key, val]) => {
+      if (val === undefined) {
+        throw new Error(`Value for key ${key} is undefined`);
+      }
+      return new xdr.ScMapEntry({
         key: nativeToScVal(key, { type: "symbol" }),
         val,
-      })
-    )
+      });
+    })
   );
 }
 
@@ -55,12 +66,15 @@ function makeCommitmentEntryScVal(overrides?: Partial<Record<string, xdr.ScVal>>
   };
   const merged = { ...defaults, ...overrides };
   return xdr.ScVal.scvMap(
-    Object.entries(merged).map(([key, val]) =>
-      new xdr.ScMapEntry({
+    Object.entries(merged).map(([key, val]) => {
+      if (val === undefined) {
+        throw new Error(`Value for key ${key} is undefined`);
+      }
+      return new xdr.ScMapEntry({
         key: nativeToScVal(key, { type: "symbol" }),
         val,
-      })
-    )
+      });
+    })
   );
 }
 
@@ -79,12 +93,15 @@ function makeScheduledPaymentScVal(overrides?: Partial<Record<string, xdr.ScVal>
   };
   const merged = { ...defaults, ...overrides };
   return xdr.ScVal.scvMap(
-    Object.entries(merged).map(([key, val]) =>
-      new xdr.ScMapEntry({
+    Object.entries(merged).map(([key, val]) => {
+      if (val === undefined) {
+        throw new Error(`Value for key ${key} is undefined`);
+      }
+      return new xdr.ScMapEntry({
         key: nativeToScVal(key, { type: "symbol" }),
         val,
-      })
-    )
+      });
+    })
   );
 }
 
@@ -93,7 +110,12 @@ function makeScheduledPaymentScVal(overrides?: Partial<Record<string, xdr.ScVal>
 class TestablePayrollRegistryClient extends PayrollRegistryClient {
   public invokeStub = jest.fn().mockResolvedValue(xdr.ScVal.scvVoid());
 
-  protected async invoke(method: string, args: xdr.ScVal[], signer: Keypair, network?: string): Promise<xdr.ScVal> {
+  protected async invoke(
+    method: string,
+    args: xdr.ScVal[],
+    signer: Keypair,
+    network?: string
+  ): Promise<xdr.ScVal> {
     return this.invokeStub(method, args, signer, network);
   }
 }
@@ -101,7 +123,12 @@ class TestablePayrollRegistryClient extends PayrollRegistryClient {
 class TestableSalaryCommitmentClient extends SalaryCommitmentClient {
   public invokeStub = jest.fn().mockResolvedValue(xdr.ScVal.scvVoid());
 
-  protected async invoke(method: string, args: xdr.ScVal[], signer: Keypair, network?: string): Promise<xdr.ScVal> {
+  protected async invoke(
+    method: string,
+    args: xdr.ScVal[],
+    signer: Keypair,
+    network?: string
+  ): Promise<xdr.ScVal> {
     return this.invokeStub(method, args, signer, network);
   }
 }
@@ -109,7 +136,12 @@ class TestableSalaryCommitmentClient extends SalaryCommitmentClient {
 class TestableProofVerifierClient extends ProofVerifierClient {
   public invokeStub = jest.fn().mockResolvedValue(xdr.ScVal.scvVoid());
 
-  protected async invoke(method: string, args: xdr.ScVal[], signer: Keypair, network?: string): Promise<xdr.ScVal> {
+  protected async invoke(
+    method: string,
+    args: xdr.ScVal[],
+    signer: Keypair,
+    network?: string
+  ): Promise<xdr.ScVal> {
     return this.invokeStub(method, args, signer, network);
   }
 }
@@ -117,7 +149,12 @@ class TestableProofVerifierClient extends ProofVerifierClient {
 class TestablePaymentExecutorClient extends PaymentExecutorClient {
   public invokeStub = jest.fn().mockResolvedValue(xdr.ScVal.scvVoid());
 
-  protected async invoke(method: string, args: xdr.ScVal[], signer: Keypair, network?: string): Promise<xdr.ScVal> {
+  protected async invoke(
+    method: string,
+    args: xdr.ScVal[],
+    signer: Keypair,
+    network?: string
+  ): Promise<xdr.ScVal> {
     return this.invokeStub(method, args, signer, network);
   }
 }
@@ -201,15 +238,18 @@ describe("PayrollRegistryClient", () => {
 
     it("throws on invalid ScVal", async () => {
       client.invokeStub.mockResolvedValue(xdr.ScVal.scvVoid());
-      await expect(
-        client.getRegistry(TEST_EMPLOYER, TEST_EMPLOYEE, signer)
-      ).rejects.toThrow("Expected scvMap for RegistryEntry");
+      await expect(client.getRegistry(TEST_EMPLOYER, TEST_EMPLOYEE, signer)).rejects.toThrow(
+        "Expected scvMap for RegistryEntry"
+      );
     });
   });
 
   describe("updateRegistry", () => {
     it("calls invoke with method name 'update_registry'", async () => {
-      await client.updateRegistry({ employer: TEST_EMPLOYER, employee: TEST_EMPLOYEE, salary: 2000n }, signer);
+      await client.updateRegistry(
+        { employer: TEST_EMPLOYER, employee: TEST_EMPLOYEE, salary: 2000n },
+        signer
+      );
       expect(client.invokeStub.mock.calls[0][0]).toBe("update_registry");
     });
   });
@@ -232,9 +272,7 @@ describe("PayrollRegistryClient", () => {
 
   describe("getEmployees", () => {
     it("calls invoke with method name 'get_employees'", async () => {
-      client.invokeStub.mockResolvedValue(
-        xdr.ScVal.scvVec([new Address(TEST_EMPLOYEE).toScVal()])
-      );
+      client.invokeStub.mockResolvedValue(xdr.ScVal.scvVec([new Address(TEST_EMPLOYEE).toScVal()]));
       const employees = await client.getEmployees(TEST_EMPLOYER, 0, 10, signer);
       expect(client.invokeStub.mock.calls[0][0]).toBe("get_employees");
       expect(employees).toHaveLength(1);
@@ -253,12 +291,19 @@ describe("PayrollRegistryClient", () => {
 
   describe("network passphrase", () => {
     it("passes default TESTNET to invoke", async () => {
-      await client.register({ employer: TEST_EMPLOYER, employee: TEST_EMPLOYEE, salary: 1000n, token: TEST_TOKEN }, signer);
+      await client.register(
+        { employer: TEST_EMPLOYER, employee: TEST_EMPLOYEE, salary: 1000n, token: TEST_TOKEN },
+        signer
+      );
       expect(client.invokeStub.mock.calls[0][3]).toBe(Networks.TESTNET);
     });
 
     it("passes custom network when provided", async () => {
-      await client.register({ employer: TEST_EMPLOYER, employee: TEST_EMPLOYEE, salary: 1000n, token: TEST_TOKEN }, signer, Networks.PUBLIC);
+      await client.register(
+        { employer: TEST_EMPLOYER, employee: TEST_EMPLOYEE, salary: 1000n, token: TEST_TOKEN },
+        signer,
+        Networks.PUBLIC
+      );
       expect(client.invokeStub.mock.calls[0][3]).toBe(Networks.PUBLIC);
     });
 
@@ -266,7 +311,10 @@ describe("PayrollRegistryClient", () => {
       const customClient = new TestablePayrollRegistryClient(createMockServer(), TEST_CONTRACT_ID, {
         networkPassphrase: Networks.PUBLIC,
       });
-      await customClient.register({ employer: TEST_EMPLOYER, employee: TEST_EMPLOYEE, salary: 1000n, token: TEST_TOKEN }, signer);
+      await customClient.register(
+        { employer: TEST_EMPLOYER, employee: TEST_EMPLOYEE, salary: 1000n, token: TEST_TOKEN },
+        signer
+      );
       expect(customClient.invokeStub.mock.calls[0][3]).toBe(Networks.PUBLIC);
     });
   });
@@ -349,7 +397,13 @@ describe("SalaryCommitmentClient", () => {
   describe("verifyCommitment", () => {
     it("calls invoke with method name 'verify_commitment'", async () => {
       client.invokeStub.mockResolvedValue(xdr.ScVal.scvBool(true));
-      const result = await client.verifyCommitment(TEST_EMPLOYER, TEST_EMPLOYEE, 1n, MOCK_PROOF_STRUCT, signer);
+      const result = await client.verifyCommitment(
+        TEST_EMPLOYER,
+        TEST_EMPLOYEE,
+        1n,
+        MOCK_PROOF_STRUCT,
+        signer
+      );
       expect(client.invokeStub.mock.calls[0][0]).toBe("verify_commitment");
       expect(result).toBe(true);
     });
@@ -454,9 +508,18 @@ describe("ProofVerifierClient", () => {
   describe("getVerificationKeyInfo", () => {
     it("calls invoke with method name 'get_verification_key_info' and decodes response", async () => {
       const infoScVal = xdr.ScVal.scvMap([
-        new xdr.ScMapEntry({ key: nativeToScVal("id", { type: "symbol" }), val: nativeToScVal(1, { type: "u32" }) }),
-        new xdr.ScMapEntry({ key: nativeToScVal("description", { type: "symbol" }), val: nativeToScVal("my key", { type: "string" }) }),
-        new xdr.ScMapEntry({ key: nativeToScVal("key", { type: "symbol" }), val: nativeToScVal(Buffer.from("ff00", "hex"), { type: "bytes" }) }),
+        new xdr.ScMapEntry({
+          key: nativeToScVal("id", { type: "symbol" }),
+          val: nativeToScVal(1, { type: "u32" }),
+        }),
+        new xdr.ScMapEntry({
+          key: nativeToScVal("description", { type: "symbol" }),
+          val: nativeToScVal("my key", { type: "string" }),
+        }),
+        new xdr.ScMapEntry({
+          key: nativeToScVal("key", { type: "symbol" }),
+          val: nativeToScVal(Buffer.from("ff00", "hex"), { type: "bytes" }),
+        }),
       ]);
       client.invokeStub.mockResolvedValue(infoScVal);
       const info = await client.getVerificationKeyInfo(1, signer);
@@ -494,7 +557,9 @@ describe("PaymentExecutorClient", () => {
 
   describe("execute", () => {
     it("calls invoke with method name 'execute'", async () => {
-      client.invokeStub.mockResolvedValue(nativeToScVal(Buffer.from("txhash", "hex"), { type: "bytes" }));
+      client.invokeStub.mockResolvedValue(
+        nativeToScVal(Buffer.from("txhash", "hex"), { type: "bytes" })
+      );
       const result = await client.execute(
         { recipient: TEST_EMPLOYEE, amount: 1000n, asset: TEST_TOKEN },
         signer
@@ -504,7 +569,9 @@ describe("PaymentExecutorClient", () => {
     });
 
     it("encodes four XDR arguments", async () => {
-      client.invokeStub.mockResolvedValue(nativeToScVal(Buffer.from("00", "hex"), { type: "bytes" }));
+      client.invokeStub.mockResolvedValue(
+        nativeToScVal(Buffer.from("00", "hex"), { type: "bytes" })
+      );
       await client.execute(
         { recipient: TEST_EMPLOYEE, amount: 1000n, asset: TEST_TOKEN, memo: "bonus" },
         signer
@@ -528,7 +595,13 @@ describe("PaymentExecutorClient", () => {
     it("encodes five XDR arguments", async () => {
       client.invokeStub.mockResolvedValue(nativeToScVal(1n, { type: "u64" }));
       await client.schedule(
-        { recipient: TEST_EMPLOYEE, amount: 500n, asset: TEST_TOKEN, executeAt: 1000, memo: "test" },
+        {
+          recipient: TEST_EMPLOYEE,
+          amount: 500n,
+          asset: TEST_TOKEN,
+          executeAt: 1000,
+          memo: "test",
+        },
         signer
       );
       const args: xdr.ScVal[] = client.invokeStub.mock.calls[0][1];
@@ -564,7 +637,9 @@ describe("PaymentExecutorClient", () => {
 
     it("throws on invalid ScVal", async () => {
       client.invokeStub.mockResolvedValue(xdr.ScVal.scvVoid());
-      await expect(client.getScheduledPayment(42n, signer)).rejects.toThrow("Expected scvMap for ScheduledPayment");
+      await expect(client.getScheduledPayment(42n, signer)).rejects.toThrow(
+        "Expected scvMap for ScheduledPayment"
+      );
     });
   });
 
