@@ -53,7 +53,7 @@ export class SalaryCommitmentClient extends BaseContractWrapper {
     const result = await this.invoke(
       "get_commitment",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return this.decodeCommitmentEntry(result);
@@ -116,7 +116,7 @@ export class SalaryCommitmentClient extends BaseContractWrapper {
     const result = await this.invoke(
       "verify_commitment",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return result.b() === true;
@@ -151,7 +151,7 @@ export class SalaryCommitmentClient extends BaseContractWrapper {
     const result = await this.invoke(
       "get_commitment_count",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return Number(result.u32());

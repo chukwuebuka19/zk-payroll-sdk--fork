@@ -46,7 +46,7 @@ export class WalletSigner implements ISigner {
   constructor(
     private readonly getPublicKeyFn: () => Promise<string>,
     private readonly signTxFn: (txXdr: string) => Promise<string>,
-    options?: WalletSignerOptions,
+    options?: WalletSignerOptions
   ) {
     this.networkPassphrase = options?.networkPassphrase ?? Networks.TESTNET;
   }

@@ -1,11 +1,4 @@
-import {
-  rpc,
-  Contract,
-  TransactionBuilder,
-  Networks,
-  BASE_FEE,
-  xdr,
-} from "@stellar/stellar-sdk";
+import { rpc, Contract, TransactionBuilder, Networks, BASE_FEE, xdr } from "@stellar/stellar-sdk";
 import type { ISigner } from "../signer/types";
 import { ContractExecutionError, ContractErrorCode, mapRpcError } from "../errors";
 import { withRetry } from "../core";
@@ -56,7 +49,8 @@ export abstract class BaseContractWrapper {
   ): Promise<xdr.ScVal> {
     try {
       // ── 1. Load the source account ─────────────────────────────────────
-      const account = await withRetry(() => this.server.getAccount(signer.publicKey()), {
+      const pubKey = await signer.getPublicKey();
+      const account = await withRetry(() => this.server.getAccount(pubKey), {
         attempts: 3,
         delayMs: 100,
       });
@@ -86,7 +80,7 @@ export abstract class BaseContractWrapper {
       // ── 4. Assemble: attach footprint and authorisation from simulation ─
       const preparedTx = rpc.assembleTransaction(rawTx, simResult).build();
 
-      const signedTx = await signer.sign(preparedTx);
+      await signer.sign(preparedTx);
 
       // ── 5. Submit ──────────────────────────────────────────────────────
       const sendResult = await withRetry(() => this.server.sendTransaction(preparedTx), {

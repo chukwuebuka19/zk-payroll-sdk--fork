@@ -37,7 +37,12 @@ export class PaymentExecutorClient extends BaseContractWrapper {
       nativeToScVal(request.memo ?? "", { type: "string" }),
     ];
 
-    const result = await this.invoke("execute", args, toISigner(signer), network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "execute",
+      args,
+      toISigner(signer),
+      network ?? this.networkPassphrase
+    );
     return { txHash: this.scValToHex(result) };
   }
 
@@ -54,7 +59,12 @@ export class PaymentExecutorClient extends BaseContractWrapper {
       nativeToScVal(request.memo ?? "", { type: "string" }),
     ];
 
-    const result = await this.invoke("schedule", args, toISigner(signer), network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "schedule",
+      args,
+      toISigner(signer),
+      network ?? this.networkPassphrase
+    );
     return { paymentId: this.scValToBigInt(result) };
   }
 
@@ -72,7 +82,7 @@ export class PaymentExecutorClient extends BaseContractWrapper {
     const result = await this.invoke(
       "get_scheduled_payment",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return this.decodeScheduledPayment(result);
@@ -94,7 +104,7 @@ export class PaymentExecutorClient extends BaseContractWrapper {
     const result = await this.invoke(
       "get_pending_payments",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return this.decodeScheduledPaymentVec(result);
@@ -105,7 +115,7 @@ export class PaymentExecutorClient extends BaseContractWrapper {
     const result = await this.invoke(
       "get_payment_count",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return Number(result.u32());

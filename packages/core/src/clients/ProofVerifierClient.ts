@@ -31,7 +31,12 @@ export class ProofVerifierClient extends BaseContractWrapper {
       nativeToScVal(verificationKeyId, { type: "u32" }),
     ];
 
-    const result = await this.invoke("verify", args, toISigner(signer), network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "verify",
+      args,
+      toISigner(signer),
+      network ?? this.networkPassphrase
+    );
     return result.b() === true;
   }
 
@@ -51,7 +56,7 @@ export class ProofVerifierClient extends BaseContractWrapper {
     const result = await this.invoke(
       "add_verification_key",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return Number(result.u32());
@@ -62,7 +67,7 @@ export class ProofVerifierClient extends BaseContractWrapper {
     const result = await this.invoke(
       "get_verification_key",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     const bytes = result.bytes();
@@ -74,7 +79,7 @@ export class ProofVerifierClient extends BaseContractWrapper {
     await this.invoke(
       "set_active_verification_key",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
   }
@@ -83,7 +88,7 @@ export class ProofVerifierClient extends BaseContractWrapper {
     const result = await this.invoke(
       "get_active_verification_key_id",
       [],
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return Number(result.u32());
@@ -93,7 +98,7 @@ export class ProofVerifierClient extends BaseContractWrapper {
     const result = await this.invoke(
       "get_verification_key_count",
       [],
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return Number(result.u32());
@@ -108,7 +113,7 @@ export class ProofVerifierClient extends BaseContractWrapper {
     const result = await this.invoke(
       "get_verification_key_info",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return this.decodeVerificationKeyInfo(result);

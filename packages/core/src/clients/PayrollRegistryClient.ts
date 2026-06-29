@@ -35,7 +35,7 @@ export class PayrollRegistryClient extends BaseContractWrapper {
     const result = await this.invoke(
       "get_registry",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return this.decodeRegistryEntry(result);
@@ -52,7 +52,12 @@ export class PayrollRegistryClient extends BaseContractWrapper {
       nativeToScVal(request.salary, { type: "i128" }),
     ];
 
-    await this.invoke("update_registry", args, toISigner(signer), network ?? this.networkPassphrase);
+    await this.invoke(
+      "update_registry",
+      args,
+      toISigner(signer),
+      network ?? this.networkPassphrase
+    );
   }
 
   async deactivateRegistry(
@@ -63,7 +68,12 @@ export class PayrollRegistryClient extends BaseContractWrapper {
   ): Promise<void> {
     const args: xdr.ScVal[] = [new Address(employer).toScVal(), new Address(employee).toScVal()];
 
-    await this.invoke("deactivate_registry", args, toISigner(signer), network ?? this.networkPassphrase);
+    await this.invoke(
+      "deactivate_registry",
+      args,
+      toISigner(signer),
+      network ?? this.networkPassphrase
+    );
   }
 
   async getEmployeeCount(employer: string, signer: Keypair, network?: string): Promise<number> {
@@ -71,7 +81,7 @@ export class PayrollRegistryClient extends BaseContractWrapper {
     const result = await this.invoke(
       "get_employee_count",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return Number(result.u32());
@@ -93,7 +103,7 @@ export class PayrollRegistryClient extends BaseContractWrapper {
     const result = await this.invoke(
       "get_employees",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return this.decodeAddressVec(result);
@@ -110,7 +120,7 @@ export class PayrollRegistryClient extends BaseContractWrapper {
     const result = await this.invoke(
       "registry_exists",
       args,
-      signer,
+      toISigner(signer),
       network ?? this.networkPassphrase
     );
     return result.b() === true;
