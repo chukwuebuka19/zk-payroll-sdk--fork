@@ -39,6 +39,8 @@ snapshot diffs, verify that field ordering, type mappings, and hex-encoded XDR
 lengths are consistent with the contract ABI expectations. See the header
 comments in `tests/proof-request-snapshots.test.ts` for detailed guidance.
 
+> **Troubleshooting:** If you hit issues, check the [Troubleshooting Guide](./docs/TROUBLESHOOTING.md).
+
 ## Architecture
 
 The SDK follows a **layered architecture** to maintain clean separation of concerns:

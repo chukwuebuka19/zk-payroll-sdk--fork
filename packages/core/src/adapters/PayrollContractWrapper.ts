@@ -1,11 +1,6 @@
-import {
-  rpc,
-  xdr,
-  nativeToScVal,
-  Address,
-  Keypair,
-  Networks,
-} from "@stellar/stellar-sdk";
+import { rpc, xdr, nativeToScVal, Address, Keypair, Networks } from "@stellar/stellar-sdk";
+import type { ISigner } from "../signer/types";
+import { toISigner } from "../signer/KeypairSigner";
 import { BaseContractWrapper } from "./BaseContractWrapper";
 import { ProofPayload } from "../crypto/IProofGenerator";
 
@@ -27,7 +22,7 @@ export class PayrollContractWrapper extends BaseContractWrapper {
    * @param amount    - Payment amount in stroops (i128)
    * @param asset     - Asset identifier ("native" for XLM or a Soroban token contract address)
    * @param proof     - ZK proof payload from IProofGenerator
-   * @param signer    - Keypair that signs the transaction
+   * @param signer    - Signer or Keypair that signs the transaction
    * @param network   - Network passphrase (defaults to TESTNET)
    * @returns The decoded XDR result value from the contract
    */
@@ -36,7 +31,7 @@ export class PayrollContractWrapper extends BaseContractWrapper {
     amount: bigint,
     asset: string,
     proof: ProofPayload,
-    signer: Keypair,
+    signer: Keypair | ISigner,
     network: string = Networks.TESTNET
   ): Promise<xdr.ScVal> {
     const args: xdr.ScVal[] = [
@@ -46,43 +41,37 @@ export class PayrollContractWrapper extends BaseContractWrapper {
       this.encodeProof(proof),
     ];
 
-    return this.invoke("private_pay", args, signer, network);
+    return this.invoke("private_pay", args, toISigner(signer), network);
   }
 
   /**
    * Query the contract's `get_balance` method.
    *
    * @param address - Stellar address to query
-   * @param signer  - Keypair that signs the query transaction
+   * @param signer  - Signer or Keypair that signs the query transaction
    * @param network - Network passphrase (defaults to TESTNET)
    * @returns The XDR-encoded balance value
    */
   async getBalance(
     address: string,
-    signer: Keypair,
+    signer: Keypair | ISigner,
     network: string = Networks.TESTNET
   ): Promise<xdr.ScVal> {
     const args: xdr.ScVal[] = [new Address(address).toScVal()];
-    return this.invoke("get_balance", args, signer, network);
+    return this.invoke("get_balance", args, toISigner(signer), network);
   }
 
   /**
    * Encode a ProofPayload into an XDR ScVal map for the contract verifier.
    */
   private encodeProof(proof: ProofPayload): xdr.ScVal {
-    const piA = xdr.ScVal.scvVec(
-      proof.proof.pi_a.map((s) => nativeToScVal(s, { type: "string" }))
-    );
+    const piA = xdr.ScVal.scvVec(proof.proof.pi_a.map((s) => nativeToScVal(s, { type: "string" })));
     const piB = xdr.ScVal.scvVec(
       proof.proof.pi_b.map((pair) =>
-        xdr.ScVal.scvVec(
-          pair.map((s) => nativeToScVal(s, { type: "string" }))
-        )
+        xdr.ScVal.scvVec(pair.map((s) => nativeToScVal(s, { type: "string" })))
       )
     );
-    const piC = xdr.ScVal.scvVec(
-      proof.proof.pi_c.map((s) => nativeToScVal(s, { type: "string" }))
-    );
+    const piC = xdr.ScVal.scvVec(proof.proof.pi_c.map((s) => nativeToScVal(s, { type: "string" })));
     const publicSignals = xdr.ScVal.scvVec(
       proof.publicSignals.map((s) => nativeToScVal(s, { type: "string" }))
     );

@@ -1,6 +1,7 @@
 import { rpc } from "@stellar/stellar-sdk";
 import { EventEmitter } from "events";
 import { ContractExecutionError, ContractErrorCode } from "./errors";
+import { withRetry } from "./core";
 
 /** Default polling interval in milliseconds */
 const DEFAULT_POLL_INTERVAL_MS = 2_000;
@@ -92,17 +93,18 @@ export class TransactionWatcher extends EventEmitter {
 
       let txResponse: rpc.Api.GetTransactionResponse;
       try {
-        txResponse = await this.server.getTransaction(txHash);
+        txResponse = await withRetry(() => this.server.getTransaction(txHash), {
+          attempts: 3,
+          delayMs: 100,
+        });
       } catch (err) {
-        const error =
-          err instanceof Error ? err : new Error(String(err));
+        const error = err instanceof Error ? err : new Error(String(err));
         this.emit("error", error);
         throw error;
       }
 
       if (txResponse.status === rpc.Api.GetTransactionStatus.SUCCESS) {
-        const successResponse =
-          txResponse as rpc.Api.GetSuccessfulTransactionResponse;
+        const successResponse = txResponse as rpc.Api.GetSuccessfulTransactionResponse;
         const result: ConfirmationResult = {
           txHash,
           status: "SUCCESS",
