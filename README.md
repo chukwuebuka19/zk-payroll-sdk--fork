@@ -23,6 +23,27 @@ await service.processPayment(
 );
 ```
 
+## Idempotent retries
+
+For safe retries, pass an `idempotencyKey` when processing a payment.
+
+```typescript
+import { PayrollService, createPaymentIdempotencyKey } from "@zk-payroll/sdk";
+
+const idempotencyKey = createPaymentIdempotencyKey({
+  recipient: "G...",
+  amount: 1000n,
+  asset: "native",
+});
+
+await service.processPayment({
+  recipient: "G...",
+  amount: 1000n,
+  asset: "native",
+  idempotencyKey,
+});
+```
+
 ## Features
 
 - **Typed Contract Clients**: Fully typed client wrappers for PayrollRegistry, SalaryCommitment, ProofVerifier, and PaymentExecutor contracts.
@@ -61,6 +82,10 @@ const proof = await generator.generateProof(witness);
 ```
 
 See [ZK Proof Generation Guide](./docs/ZK_PROOF_GENERATION.md) for detailed documentation.
+
+## Backend Worker Quickstart
+
+Teams building internal payroll automation workers can follow the [Backend Worker Quickstart](./docs/BACKEND_WORKER_QUICKSTART.md) for a practical end-to-end prototype covering setup, polling, retries, and event handling.
 
 ## Testing
 
@@ -189,10 +214,55 @@ await client.cancel(scheduled.paymentId, signer);
 const payments = await client.getPendingPayments("G...", 0n, 20, signer);
 ```
 
+## Environment Sanity Checker
+
+To catch configuration integration problems (such as misconfigured RPC endpoints, invalid contract IDs, or missing/unreachable circuit artifacts) before starting runtime work, the SDK provides the `validateEnvironment` helper:
+
+```typescript
+import { validateEnvironment } from "@zk-payroll/sdk";
+
+const clientConfig = {
+  networkUrl: "https://soroban-testnet.stellar.org",
+  contractId: "CCONTRACT_ID...",
+};
+
+const proofConfig = {
+  wasmUrl: "https://cdn.example.com/payroll_circuit.wasm",
+  zkeyUrl: "https://cdn.example.com/payroll_circuit.zkey",
+};
+
+const result = await validateEnvironment(clientConfig, proofConfig);
+
+if (!result.isValid) {
+  console.error("Environment check failed!");
+  for (const diagnostic of result.diagnostics) {
+    if (diagnostic.status === "error") {
+      console.error(`- [${diagnostic.component}] ${diagnostic.message}`);
+    }
+  }
+} else {
+  console.log("Environment is ready!");
+}
+```
+
+### Diagnostic Result Structure
+
+`validateEnvironment` returns a `SanityCheckResult` containing:
+- `isValid: boolean` - `true` if all validations pass with no errors.
+- `diagnostics: DiagnosticEntry[]` - List of diagnostics for each checked component.
+
+Each `DiagnosticEntry` contains:
+- `component: "rpc" | "contract" | "artifacts"` - The checked component.
+- `status: "success" | "warning" | "error"` - The validation status.
+- `message: string` - Actionable diagnostic message explaining the result.
+- `error?: Error` - The caught error object, if any.
+- `details?: Record<string, unknown>` - Extra context (e.g. network passphrases or RPC response details).
+
 ## Documentation
 
 - [API Reference](./docs/API.md) - Complete API documentation
 - [ZK Proof Generation](./docs/ZK_PROOF_GENERATION.md) - Detailed proof generation guide
+- [Troubleshooting](./docs/TROUBLESHOOTING.md) - Solutions for common CI, dependency, and environment issues
 
 ## Development
 
@@ -209,3 +279,5 @@ npm test
 # Lint
 npm run lint
 ```
+
+> Having trouble? See the [Troubleshooting Guide](./docs/TROUBLESHOOTING.md).

@@ -486,6 +486,40 @@ mockEnv.expectInvoke("getBalance").toReturn(1000n); // ✅ Correct
 | `toFail(error)`     | Throw an error          |
 | `toCall(handler)`   | Execute custom function |
 
+## Flaky Network Simulation
+
+The SDK provides a simulation layer to model unstable network conditions (intermittent timeouts, high latency, and partial failures) when calling Soroban RPC endpoints. This allows you to test retry mechanisms and transaction watcher resilience under realistic failure conditions.
+
+### Usage
+
+Use `createFlakyServer` to wrap an existing `rpc.Server` instance (or its mock):
+
+```typescript
+import { rpc } from "@stellar/stellar-sdk";
+import { createFlakyServer, TransactionWatcher } from "@zk-payroll/core";
+
+const realServer = new rpc.Server("https://soroban-testnet.stellar.org");
+
+// Wrap the server with flakiness rules
+const flakyServer = createFlakyServer(realServer, {
+  failFirstAttempts: 2,                  // Fail the first 2 attempts
+  failureRate: 0.1,                      // 10% chance of failure on subsequent attempts
+  delayMs: 150,                          // Add a flat 150ms latency to every call
+  targetMethods: ["getTransaction"],     // Only inject flakiness into getTransaction calls
+  errorFactory: () => new Error("RPC down"), // Throw this custom error
+});
+
+// Now pass the flaky server to client classes or watchers
+const watcher = new TransactionWatcher(flakyServer);
+```
+
+### Design & Simulation Assumptions
+
+1. **Proxy-based Interception**: The simulation layer uses ES6 Proxies to wrap `rpc.Server`. It intercepts function calls while passing non-functional properties through directly to the underlying server target.
+2. **Method-Level Isolation**: Attempt counters (e.g. for `failFirstAttempts`) are tracked individually per method name. If you call `getAccount` and `getTransaction`, their attempt numbers are incremented independently.
+3. **Underlying Error Propagation**: Simulated failures mimic network-level exceptions (e.g. HTTP timeouts or server unreachable errors). They are thrown as standard JS `Error` instances, allowing the SDK's internal retry helpers and error mapping blocks to catch and parse them normally.
+4. **Deterministic and Stochastic Modes**: You can mix deterministic failures (like `failFirstAttempts` for test validations) with stochastic failures (like `failureRate` for chaos testing).
+
 ## Troubleshooting
 
 ### "Expectations not met" Error

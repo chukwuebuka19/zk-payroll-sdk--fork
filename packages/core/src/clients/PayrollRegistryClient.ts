@@ -1,24 +1,18 @@
 import { rpc, xdr, nativeToScVal, Address, Keypair, Networks } from "@stellar/stellar-sdk";
+import type { ISigner } from "../signer/types";
+import { toISigner } from "../signer/KeypairSigner";
 import { BaseContractWrapper } from "../adapters/BaseContractWrapper";
 import { ClientOptions, RegistryEntry, RegisterRequest, UpdateRegistryRequest } from "./types";
 
 export class PayrollRegistryClient extends BaseContractWrapper {
   private readonly networkPassphrase: string;
 
-  constructor(
-    server: rpc.Server,
-    contractId: string,
-    options?: ClientOptions
-  ) {
+  constructor(server: rpc.Server, contractId: string, options?: ClientOptions) {
     super(server, contractId);
     this.networkPassphrase = options?.networkPassphrase ?? Networks.TESTNET;
   }
 
-  async register(
-    request: RegisterRequest,
-    signer: Keypair,
-    network?: string
-  ): Promise<void> {
+  async register(request: RegisterRequest, signer: Keypair, network?: string): Promise<void> {
     const args: xdr.ScVal[] = [
       new Address(request.employer).toScVal(),
       new Address(request.employee).toScVal(),
@@ -27,27 +21,29 @@ export class PayrollRegistryClient extends BaseContractWrapper {
       nativeToScVal(request.metadata ?? "", { type: "string" }),
     ];
 
-    await this.invoke("register", args, signer, network ?? this.networkPassphrase);
+    await this.invoke("register", args, toISigner(signer), network ?? this.networkPassphrase);
   }
 
   async getRegistry(
     employer: string,
     employee: string,
-    signer: Keypair,
+    signer: Keypair | ISigner,
     network?: string
   ): Promise<RegistryEntry> {
-    const args: xdr.ScVal[] = [
-      new Address(employer).toScVal(),
-      new Address(employee).toScVal(),
-    ];
+    const args: xdr.ScVal[] = [new Address(employer).toScVal(), new Address(employee).toScVal()];
 
-    const result = await this.invoke("get_registry", args, signer, network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "get_registry",
+      args,
+      toISigner(signer),
+      network ?? this.networkPassphrase
+    );
     return this.decodeRegistryEntry(result);
   }
 
   async updateRegistry(
     request: UpdateRegistryRequest,
-    signer: Keypair,
+    signer: Keypair | ISigner,
     network?: string
   ): Promise<void> {
     const args: xdr.ScVal[] = [
@@ -56,30 +52,38 @@ export class PayrollRegistryClient extends BaseContractWrapper {
       nativeToScVal(request.salary, { type: "i128" }),
     ];
 
-    await this.invoke("update_registry", args, signer, network ?? this.networkPassphrase);
+    await this.invoke(
+      "update_registry",
+      args,
+      toISigner(signer),
+      network ?? this.networkPassphrase
+    );
   }
 
   async deactivateRegistry(
     employer: string,
     employee: string,
-    signer: Keypair,
+    signer: Keypair | ISigner,
     network?: string
   ): Promise<void> {
-    const args: xdr.ScVal[] = [
-      new Address(employer).toScVal(),
-      new Address(employee).toScVal(),
-    ];
+    const args: xdr.ScVal[] = [new Address(employer).toScVal(), new Address(employee).toScVal()];
 
-    await this.invoke("deactivate_registry", args, signer, network ?? this.networkPassphrase);
+    await this.invoke(
+      "deactivate_registry",
+      args,
+      toISigner(signer),
+      network ?? this.networkPassphrase
+    );
   }
 
-  async getEmployeeCount(
-    employer: string,
-    signer: Keypair,
-    network?: string
-  ): Promise<number> {
+  async getEmployeeCount(employer: string, signer: Keypair, network?: string): Promise<number> {
     const args: xdr.ScVal[] = [new Address(employer).toScVal()];
-    const result = await this.invoke("get_employee_count", args, signer, network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "get_employee_count",
+      args,
+      toISigner(signer),
+      network ?? this.networkPassphrase
+    );
     return Number(result.u32());
   }
 
@@ -87,7 +91,7 @@ export class PayrollRegistryClient extends BaseContractWrapper {
     employer: string,
     start: number,
     limit: number,
-    signer: Keypair,
+    signer: Keypair | ISigner,
     network?: string
   ): Promise<string[]> {
     const args: xdr.ScVal[] = [
@@ -96,22 +100,29 @@ export class PayrollRegistryClient extends BaseContractWrapper {
       nativeToScVal(limit, { type: "u32" }),
     ];
 
-    const result = await this.invoke("get_employees", args, signer, network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "get_employees",
+      args,
+      toISigner(signer),
+      network ?? this.networkPassphrase
+    );
     return this.decodeAddressVec(result);
   }
 
   async registryExists(
     employer: string,
     employee: string,
-    signer: Keypair,
+    signer: Keypair | ISigner,
     network?: string
   ): Promise<boolean> {
-    const args: xdr.ScVal[] = [
-      new Address(employer).toScVal(),
-      new Address(employee).toScVal(),
-    ];
+    const args: xdr.ScVal[] = [new Address(employer).toScVal(), new Address(employee).toScVal()];
 
-    const result = await this.invoke("registry_exists", args, signer, network ?? this.networkPassphrase);
+    const result = await this.invoke(
+      "registry_exists",
+      args,
+      toISigner(signer),
+      network ?? this.networkPassphrase
+    );
     return result.b() === true;
   }
 
@@ -146,14 +157,17 @@ export class PayrollRegistryClient extends BaseContractWrapper {
   }
 
   private scValToBigInt(scVal: xdr.ScVal): bigint {
-    const i128 = scVal.i128();
-    if (i128) {
-      const hi = BigInt(i128.hi());
-      const lo = BigInt(i128.lo());
+    const swName = scVal.switch().name;
+    if (swName === "scvI128") {
+      const i128 = scVal.i128();
+      const hi = BigInt(i128.hi().toString());
+      const lo = BigInt(i128.lo().toString());
       return (hi << 64n) | lo;
     }
-    const u64 = scVal.u64();
-    if (u64) return BigInt(u64);
+    if (swName === "scvU64") {
+      const u64 = scVal.u64();
+      return BigInt(u64.toString());
+    }
     return 0n;
   }
 }

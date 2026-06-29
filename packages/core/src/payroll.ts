@@ -1,9 +1,12 @@
 import { Keypair, Networks } from "@stellar/stellar-sdk";
+import type { ISigner } from "./signer/types";
+import { toISigner } from "./signer/KeypairSigner";
 import { PayrollContractWrapper } from "./adapters/PayrollContractWrapper";
 import { IProofGenerator, ProofPayload } from "./crypto/IProofGenerator";
 import { PayrollError, PayrollServiceErrorCode } from "./errors";
 import { PaymentParams, PaymentResult } from "./types";
 import { SdkLogger } from "./logging/SdkLogger";
+import { IdempotencyRegistry, createPaymentIdempotencyKey } from "./core/idempotency";
 
 export interface Transaction {
   amount: bigint;
@@ -24,19 +27,42 @@ export interface FilterCriteria {
  * Sensitive fields (recipient, amount, asset) are never written to the log.
  */
 export class PayrollService {
+  private readonly signer: ISigner;
+  private readonly paymentIdempotency = new IdempotencyRegistry<PaymentResult>();
+
   constructor(
     private readonly contractWrapper: PayrollContractWrapper,
     private readonly proofGenerator: IProofGenerator,
-    private readonly signer: Keypair,
+    signer: Keypair | ISigner,
     private readonly network: string = Networks.TESTNET,
     private readonly logger?: SdkLogger
-  ) {}
+  ) {
+    this.signer = toISigner(signer);
+  }
 
   /**
    * Process a private payment by generating a ZK proof and submitting
    * the transaction to the Soroban contract.
    */
   async processPayment(params: PaymentParams): Promise<PaymentResult> {
+    const explicitKey = params.idempotencyKey?.trim();
+    if (!explicitKey) {
+      return this.processPaymentInternal(params);
+    }
+
+    return this.paymentIdempotency.execute(explicitKey, async () => {
+      return this.processPaymentInternal(params);
+    });
+  }
+
+  /**
+   * Build a deterministic idempotency key from payment data.
+   */
+  static createIdempotencyKey(params: Pick<PaymentParams, "recipient" | "amount" | "asset">): string {
+    return createPaymentIdempotencyKey(params);
+  }
+
+  private async processPaymentInternal(params: PaymentParams): Promise<PaymentResult> {
     const { recipient, amount, asset } = params;
 
     this.logger?.info("payment_start");
@@ -80,7 +106,8 @@ export class PayrollService {
       asset,
       proof,
       this.signer,
-      this.network
+      this.network,
+      params.idempotencyKey ? { idempotencyKey: params.idempotencyKey } : undefined
     );
 
     const result: PaymentResult = {
@@ -98,20 +125,18 @@ export class PayrollService {
   }
 
   private validatePaymentParams(params: PaymentParams): void {
-    if (!params.recipient || params.recipient.trim() === "") {
-      throw new PayrollError(
-        "Recipient address is required",
-        PayrollServiceErrorCode.INVALID_RECIPIENT
-      );
-    }
-    if (params.amount <= 0n) {
-      throw new PayrollError(
-        "Amount must be a positive value",
-        PayrollServiceErrorCode.INVALID_AMOUNT
-      );
-    }
-    if (!params.asset || params.asset.trim() === "") {
-      throw new PayrollError("Asset identifier is required", PayrollServiceErrorCode.INVALID_ASSET);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { PayrollValidation } = require("./core/validation");
+    const result = PayrollValidation.validatePaymentParams(params);
+    if (!result.isValid) {
+      // Map to backward-compatible PayrollError
+      const firstError = result.errors[0];
+      let code = 0;
+      if (firstError.field === "recipient") code = PayrollServiceErrorCode.INVALID_RECIPIENT;
+      else if (firstError.field === "amount") code = PayrollServiceErrorCode.INVALID_AMOUNT;
+      else if (firstError.field === "asset") code = PayrollServiceErrorCode.INVALID_ASSET;
+
+      throw new PayrollError(firstError.message, code);
     }
   }
 }

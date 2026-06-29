@@ -2,23 +2,44 @@
  * ZK Payroll SDK — Main entry point.
  *
  * Architecture layers:
- *   api/      — Public-facing classes and interfaces
- *   core/     — Business logic (ZK proofs, payroll, caching)
  *   adapters/ — Low-level blockchain/Soroban wrappers
+ *   crypto/   — ZK proof generation
+ *   cache/    — Caching providers
+ *   testing/  — Mock utilities
  */
 
-// ── API Layer ───────────────────────────────────────────────────────────────
-export * from "./api";
-
-// ── Core Layer ──────────────────────────────────────────────────────────────
-export * from "./core";
-
-// ── Backward-compat error aliases (not in the core layer) ───────────────────
-export { PayrollError, PayrollServiceErrorCode, handleApiError } from "./errors";
-
 // ── Adapters Layer ──────────────────────────────────────────────────────────
+export { PayrollService } from "./payroll";
+export { PayrollContract } from "./contract";
+export { ZKProofGenerator } from "./crypto/proofs";
+export { SnarkjsProofGenerator } from "./crypto/SnarkjsProofGenerator";
+export { WorkerProofGenerator } from "./crypto/WorkerProofGenerator";
+export type {
+  WorkerLike,
+  WorkerProofOptions,
+  ProofProgressCallback,
+} from "./crypto/WorkerProofGenerator";
+export type { WorkerRequest, WorkerResponse, ProofProgressStage } from "./crypto/WorkerMessages";
+export {
+  ZkPayrollError,
+  NetworkError,
+  ProofGenerationError,
+  ContractExecutionError,
+  ValidationError,
+  ContractErrorCode,
+  mapRpcError,
+  PayrollError,
+} from "./errors";
+export type { ErrorContext, ContractErrorCodeType } from "./errors";
+export { DEFAULT_CONFIG } from "./config";
+export * from "./cache";
+export * from "./types";
+export { IdempotencyRegistry, createPaymentIdempotencyKey } from "./core/idempotency";
+export * from "./crypto/IProofGenerator";
 export * from "./adapters";
 
+// ── Wallet Adapters ─────────────────────────────────────────────────────────
+export * from "./wallets";
 // ── Logging ─────────────────────────────────────────────────────────────────
 export * from "./logging";
 
@@ -34,3 +55,18 @@ export type { ConfirmationOptions, ConfirmationResult } from "./events";
 
 // ── Typed Contract Clients ───────────────────────────────────────────────────
 export * from "./clients";
+
+// ── Environment Sanity Checker ──────────────────────────────────────────────
+export * from "./sanity";
+
+// ── Transaction Simulation ──────────────────────────────────────────────────
+export * from "./simulation";
+
+// ── Draft Persistence ───────────────────────────────────────────────────────
+export * from "./draft";
+
+// ── History Filter Builders ─────────────────────────────────────────────────
+export * from "./filters";
+
+// ── Redaction Utilities ─────────────────────────────────────────────────────
+export * from "./redaction";
